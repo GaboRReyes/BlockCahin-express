@@ -2,59 +2,83 @@ const express = require('express')
 const axios   = require('axios')
 const router  = express.Router()
 
-// POST /receive
-router.post('/receive', async (req, res) => {
-  const blockchain = req.app.get('blockchain')
-  const bloque = req.body.bloque
-  const propagado = req.headers['x-propagated'] === 'true'
+// Convierte el formato externo (aplanado, snake_case) al formato interno
+function normalizarBloqueexterno(bloque) {
+    
+  // Si ya tiene data.transacciones, es formato interno — no tocar
+  if (bloque.data?.transacciones) return bloque
 
-  if (!bloque) {
-    return res.status(400).json({ error: 'Bloque inválido' })
+  // Formato externo
+  const tx = {
+    id:             bloque.id,
+    persona_id:     bloque.persona_id,
+    institucion_id: bloque.institucion_id,
+    programa_id:    bloque.programa_id,
+    titulo_obtenido:bloque.titulo_obtenido,
+    fecha_inicio:   bloque.fecha_inicio   || null,
+    fecha_fin:      bloque.fecha_fin      || null,
+    numero_cedula:  bloque.numero_cedula  || null,
+    titulo_tesis:   bloque.titulo_tesis   || null,
+    menciones:      bloque.menciones      || null,
+    firmado_por:    bloque.firmado_por    || null,
+    creado_en:      bloque.creado_en      || new Date().toISOString(),
   }
 
-  // Compatibilidad camelCase <-> snake_case
-  const hash_actual = bloque.hash_actual || bloque.hash_actual
-  const hash_anterior = bloque.hash_anterior || bloque.hash_anterior
-  const firmado_por = bloque.firmado_por || bloque.firmado_por
+  return {
+    index:         bloque.index        ?? null,
+    timestamp:     bloque.timestamp    ?? Date.now(),
+    hash_actual:   bloque.hash_actual,
+    hash_anterior: bloque.hash_anterior,
+    nonce:         bloque.nonce        ?? 0,
+    data: {
+      transacciones: [tx],
+      minado_por: bloque.firmado_por || 'externo',
+    }
+  }
+}
 
-  if (!hash_actual) {
-    return res.status(400).json({ error: 'Bloque inválido: falta hashActual' })
+// POST /blocks/receive
+router.post('/receive', async (req, res) => {
+  const blockchain = req.app.get('blockchain')
+  const bloqueRaw  = req.body.bloque
+  const propagado  = req.headers['x-propagated'] === 'true'
+
+  if (!bloqueRaw) {
+    return res.status(400).json({ error: 'Bloque inválido: falta body.bloque' })
+  }
+
+  const bloque = normalizarBloqueexterno(bloqueRaw)
+
+  if (!bloque.hash_actual) {
+    return res.status(400).json({ error: 'Bloque inválido: falta hash_actual' })
   }
 
   // Verificar encadenamiento
   const ultimo = blockchain.ultimoBloque
-  if (hash_anterior !== ultimo.hash_actual) {
+  if (bloque.hash_anterior !== ultimo.hash_actual) {
     return res.status(409).json({ error: 'Conflicto de cadena' })
   }
 
-  // Normalizar bloque antes de agregarlo a la cadena
-  const bloqueNormalizado = {
-    ...bloque,
-    hashActual,
-    hashAnterior,
-    firmadoPor
-  }
-
-  blockchain.chain.push(bloqueNormalizado)
+  blockchain.chain.push(bloque)
   blockchain.transaccionesPendientes = blockchain.transaccionesPendientes.filter(
-    tx => !bloqueNormalizado.data?.transacciones?.some(btx => btx.id === tx.id)
+    tx => !bloque.data.transacciones.some(btx => btx.id === tx.id)
   )
 
   const { persistirBloque } = require('../db/grados')
-  try { 
-    await persistirBloque(bloqueNormalizado, process.env.NODE_ID || 'nodo-1') 
-  } catch (err) { 
-    console.error(err) 
+  try {
+    await persistirBloque(bloque, process.env.NODE_ID || 'nodo-1')
+  } catch (err) {
+    console.error('[Receive] Error persistiendo:', err.message)
   }
 
-  // Propagar a otros nodos
   if (!propagado) {
     const nodos = blockchain.getNodos()
-    const propagaciones = nodos.map(nodo =>
-      axios.post(`${nodo}/blocks/receive`, { bloque: bloqueNormalizado }, { headers: { 'X-Propagated': 'true' } })
-        .catch(err => console.warn(`[Propagacion Bloque] Fallo nodo ${nodo}: ${err.message}`))
+    await Promise.allSettled(
+      nodos.map(nodo =>
+        axios.post(`${nodo}/blocks/receive`, { bloque }, { headers: { 'X-Propagated': 'true' } })
+          .catch(err => console.warn(`[Propagacion Bloque] Fallo nodo ${nodo}: ${err.message}`))
+      )
     )
-    await Promise.allSettled(propagaciones)
   }
 
   res.json({ mensaje: 'Bloque recibido y agregado' })

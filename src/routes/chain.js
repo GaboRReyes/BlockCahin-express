@@ -11,4 +11,4 @@ router.get('/', (req, res) => {
   res.json({ longitud: blockchain.chain.length, cadena: blockchain.chain })
 })
 
-module.exports = router
+module.exports = router 
