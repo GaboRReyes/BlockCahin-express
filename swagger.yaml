@@ -7,10 +7,8 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:8001
-    description: Nodo 1 (local)
   - url: http://localhost:8002
-    description: Nodo 2 (local)
+    description: Nodo 1 (local)
 
 tags:
   - name: Sistema
@@ -36,11 +34,11 @@ paths:
               example:
                 status: ok
                 nodeId: nodo-1
-                port: "8001"
-                bloques: 5
-                pendientes: 2
+                port: "8002"
+                bloques: 3
+                pendientes: 0
                 peers:
-                  - http://localhost:8002
+                  - https://otro-nodo.ngrok-free.dev
 
   /chain:
     get:
@@ -58,18 +56,18 @@ paths:
                 chain:
                   - index: 0
                     timestamp: 1774481949941
-                    hashActual: "abc"
-                    hashAnterior: "0"
+                    hash_actual: "0000000000000000000000000000000000000000000000000000000000000000"
+                    hash_anterior: "0"
                     nonce: 0
                     data:
-                      mensaje: "Bloque Génesis"
+                      mensaje: "Bloque Génesis - Red Blockchain Grados de Académicos"
                 length: 1
 
   /transactions:
     post:
       tags: [Transacciones]
       operationId: createTransaction
-      summary: Registrar transacción
+      summary: Registrar una transacción pendiente
       parameters:
         - $ref: '#/components/parameters/XPropagated'
       requestBody:
@@ -78,102 +76,73 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TransaccionInput'
+            example:
+              persona_id: "11111111-1111-1111-1111-111111111111"
+              institucion_id: "33333333-3333-3333-3333-333333333333"
+              programa_id: "55555555-5555-5555-5555-555555555555"
+              titulo_obtenido: "Ingeniería en Sistemas Computacionales"
+              fecha_inicio: "2023-01-01"
+              fecha_fin: "2025-06-01"
+              numero_cedula: "CED-99998888"
+              titulo_tesis: "Consenso Distribuido en Angular"
+              menciones: "Summa Cum Laude"
+              firmado_por: "nodo-1"
       responses:
         '201':
-          description: Transacción creada
+          description: Transacción creada y propagada
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransaccionResponse'
         '400':
-          description: Error de validación
+          description: Campos requeridos faltantes
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /mine:
-    post:
-      tags: [Minado]
-      operationId: mineBlock
-      summary: Minar bloque
-      responses:
-        '200':
-          description: Bloque minado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MineResponse'
-        '400':
-          description: Sin transacciones
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /nodes:
+  /transactions/pending:
     get:
-      tags: [Nodos]
-      operationId: getNodes
-      summary: Listar nodos
+      tags: [Transacciones]
+      operationId: getPendingTransactions
+      summary: Obtener transacciones pendientes de minar
       responses:
         '200':
-          description: Lista de nodos
+          description: Lista de transacciones pendientes
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  nodos:
+                  transacciones:
                     type: array
                     items:
-                      type: string
-                      format: uri
+                      $ref: '#/components/schemas/Transaccion'
 
-  /nodes/register:
+  /mine:
     post:
-      tags: [Nodos]
-      operationId: registerNodes
-      summary: Registrar nodos
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [nodos]
-              properties:
-                nodos:
-                  type: array
-                  items:
-                    type: string
-                    format: uri
+      tags: [Minado]
+      operationId: mineBlock
+      summary: Minar un bloque con las transacciones pendientes
       responses:
         '200':
-          description: Nodos registrados
+          description: Bloque minado y propagado a los peers
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodesRegisterResponse'
-
-  /nodes/resolve:
-    get:
-      tags: [Nodos]
-      operationId: resolveChain
-      summary: Resolver conflictos
-      responses:
-        '200':
-          description: Resultado del consenso
+                $ref: '#/components/schemas/MineResponse'
+        '400':
+          description: No hay transacciones pendientes
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ResolveResponse'
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /nodes/block:
+  /blocks/receive:
     post:
       tags: [Nodos]
       operationId: receiveBlock
-      summary: Recibir bloque
+      summary: Recibir un bloque minado desde otro nodo
       parameters:
         - $ref: '#/components/parameters/XPropagated'
       requestBody:
@@ -188,29 +157,112 @@ paths:
                   $ref: '#/components/schemas/Bloque'
             example:
               bloque:
-                index: 5
-                timestamp: 1774730558235
-                hashActual: "0000abc"
-                hashAnterior: "0000def"
-                nonce: 1234
+                index: 2
+                timestamp: 1774761808409
+                hash_anterior: "000df2730daef898ba6a251f69974fbaf520105eae5d992241471d0b408e4362"
+                nonce: 3264
+                hash_actual: "000ea988ae005128494266e5ac3809439679bd751ba36b46ff1f2078d9f5939a"
                 data:
-                  minadoPor: "nodo-1"
-                  transacciones: []
+                  minado_por: "nodo-1"
+                  transacciones:
+                    - id: "bd41130d-2771-488f-bbe0-19912518f4ce"
+                      persona_id: "11111111-1111-1111-1111-111111111111"
+                      institucion_id: "33333333-3333-3333-3333-333333333333"
+                      programa_id: "55555555-5555-5555-5555-555555555555"
+                      titulo_obtenido: "Ingeniería en Sistemas"
+                      fecha_inicio: "2023-01-01"
+                      fecha_fin: "2025-06-01"
+                      numero_cedula: null
+                      titulo_tesis: null
+                      menciones: null
+                      firmado_por: "nodo-1"
+                      creado_en: "2026-03-29T05:23:15.189Z"
       responses:
         '200':
-          description: Bloque aceptado
+          description: Bloque aceptado y agregado a la cadena
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensaje:
+                    type: string
+                    example: "Bloque recibido y agregado"
         '400':
-          description: Bloque inválido
+          description: Bloque inválido (falta hash_actual u otros campos)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflicto de cadena
+          description: Conflicto de cadena (hash_anterior no coincide)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /nodes:
+    get:
+      tags: [Nodos]
+      operationId: getNodes
+      summary: Listar nodos registrados
+      responses:
+        '200':
+          description: Lista de direcciones de nodos peers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodos:
+                    type: array
+                    items:
+                      type: string
+                      format: uri
+                    example:
+                      - "https://otro-nodo.ngrok-free.dev"
+
+  /nodes/register:
+    post:
+      tags: [Nodos]
+      operationId: registerNodes
+      summary: Registrar uno o más nodos peers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nodos]
+              properties:
+                nodos:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+            example:
+              nodos:
+                - "https://otro-nodo.ngrok-free.dev"
+      responses:
+        '200':
+          description: Nodos registrados correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodesRegisterResponse'
+
+  /nodes/resolve:
+    get:
+      tags: [Nodos]
+      operationId: resolveChain
+      summary: Resolver conflictos aplicando la cadena más larga válida
+      responses:
+        '200':
+          description: Resultado del algoritmo de consenso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveResponse'
 
 components:
 
@@ -218,9 +270,11 @@ components:
     XPropagated:
       in: header
       name: X-Propagated
+      required: false
       schema:
         type: string
         enum: ["true"]
+      description: Indica que el mensaje ya fue propagado para evitar reenvíos infinitos
 
   schemas:
 
@@ -230,30 +284,41 @@ components:
         - index
         - timestamp
         - data
-        - hashAnterior
+        - hash_anterior
         - nonce
-        - hashActual
+        - hash_actual
       properties:
         index:
           type: integer
+          example: 2
         timestamp:
           type: integer
-        hashActual:
+          description: Unix timestamp en milisegundos
+          example: 1774761808409
+        hash_actual:
           type: string
-        hashAnterior:
+          example: "000ea988ae005128494266e5ac3809439679bd751ba36b46ff1f2078d9f5939a"
+        hash_anterior:
           type: string
+          example: "000df2730daef898ba6a251f69974fbaf520105eae5d992241471d0b408e4362"
         nonce:
           type: integer
+          example: 3264
         data:
           oneOf:
-            - type: object
+            - description: Bloque génesis
+              type: object
               properties:
                 mensaje:
                   type: string
-            - type: object
+                  example: "Bloque Génesis - Red Blockchain Grados de Académicos"
+            - description: Bloque con transacciones
+              type: object
+              required: [minado_por, transacciones]
               properties:
-                minadoPor:
+                minado_por:
                   type: string
+                  example: "nodo-1"
                 transacciones:
                   type: array
                   items:
@@ -263,88 +328,115 @@ components:
       type: object
       required:
         - id
-        - personaId
-        - institucionId
-        - programaId
-        - tituloObtenido
-        - fechaFin
-        - firmadoPor
+        - persona_id
+        - institucion_id
+        - programa_id
+        - titulo_obtenido
+        - fecha_fin
       properties:
         id:
           type: string
           format: uuid
-        personaId:
+          example: "bd41130d-2771-488f-bbe0-19912518f4ce"
+        persona_id:
           type: string
           format: uuid
-        institucionId:
+          example: "11111111-1111-1111-1111-111111111111"
+        institucion_id:
           type: string
           format: uuid
-        programaId:
+          example: "33333333-3333-3333-3333-333333333333"
+        programa_id:
           type: string
           format: uuid
-        tituloObtenido:
+          example: "55555555-5555-5555-5555-555555555555"
+        titulo_obtenido:
           type: string
-        fechaFin:
+          example: "Ingeniería en Sistemas Computacionales"
+        fecha_inicio:
           type: string
           format: date
-        numeroCedula:
+          nullable: true
+          example: "2023-01-01"
+        fecha_fin:
+          type: string
+          format: date
+          example: "2025-06-01"
+        numero_cedula:
           type: string
           nullable: true
-        tituloTesis:
+          example: "CED-99998888"
+        titulo_tesis:
           type: string
           nullable: true
+          example: "Consenso Distribuido en Angular"
         menciones:
           type: string
           nullable: true
-        firmadoPor:
+          example: "Summa Cum Laude"
+        firmado_por:
           type: string
-        creadoEn:
+          nullable: true
+          example: "nodo-1"
+        creado_en:
           type: string
           format: date-time
+          example: "2026-03-29T05:23:15.189Z"
 
     TransaccionInput:
       type: object
       required:
-        - personaId
-        - institucionId
-        - programaId
-        - tituloObtenido
-        - fechaFin
-        - firmadoPor
+        - persona_id
+        - institucion_id
+        - programa_id
+        - titulo_obtenido
+        - fecha_inicio
+        - fecha_fin
       properties:
-        personaId:
+        persona_id:
           type: string
-        institucionId:
+          format: uuid
+        institucion_id:
           type: string
-        programaId:
+          format: uuid
+        programa_id:
           type: string
-        tituloObtenido:
+          format: uuid
+        titulo_obtenido:
           type: string
-        fechaFin:
+        fecha_inicio:
           type: string
-        numeroCedula:
+          format: date
+        fecha_fin:
+          type: string
+          format: date
+        numero_cedula:
           type: string
           nullable: true
-        tituloTesis:
+        titulo_tesis:
           type: string
           nullable: true
         menciones:
           type: string
           nullable: true
-        firmadoPor:
+        firmado_por:
           type: string
+          nullable: true
 
     TransaccionResponse:
       type: object
       properties:
         mensaje:
           type: string
+          example: "Transacción agregada"
         transaccion:
           $ref: '#/components/schemas/Transaccion'
         propagada:
           type: boolean
+          example: true
         indiceBloque:
           type: integer
+          example: 3
 
     ChainResponse:
       type: object
@@ -356,61 +448,71 @@ components:
             $ref: '#/components/schemas/Bloque'
         length:
           type: integer
+          example: 3
 
     MineResponse:
       type: object
       properties:
         mensaje:
           type: string
+          example: "Bloque minado"
         bloque:
           $ref: '#/components/schemas/Bloque'
-        nodosMine:
-          type: string
-        propagadoA:
-          type: array
-          items:
-            type: string
 
     NodesRegisterResponse:
       type: object
       properties:
         mensaje:
           type: string
+          example: "Nodos registrados"
         nodosActivos:
           type: array
           items:
             type: string
+          example:
+            - "https://otro-nodo.ngrok-free.dev"
 
     ResolveResponse:
       type: object
       properties:
         mensaje:
           type: string
+          example: "Cadena reemplazada por una más larga"
         reemplazada:
           type: boolean
+          example: true
         longitud:
           type: integer
+          example: 5
 
     HealthResponse:
       type: object
       properties:
         status:
           type: string
+          example: ok
         nodeId:
           type: string
+          example: nodo-1
         port:
           type: string
+          example: "8002"
         bloques:
           type: integer
+          example: 3
         pendientes:
           type: integer
+          example: 0
         peers:
           type: array
           items:
             type: string
+          example:
+            - "https://otro-nodo.ngrok-free.dev"
 
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
+          example: "No hay transacciones pendientes para minar"
