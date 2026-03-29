@@ -13,27 +13,27 @@ class Transaction {
    * @param {string} firmadoPor      - Nodo que firma la transacción
    */
   constructor({
-    personaId,
-    institucionId,
-    programaId,
-    tituloObtenido,
-    fechaFin,
-    numeroCedula = null,
-    tituloTesis  = null,
+    persona_id,
+    institucion_id,
+    programa_id,
+    titulo_obtenido,
+    fecha_fin,
+    numero_cedula = null,
+    titulo_tesis  = null,
     menciones    = null,
-    firmadoPor,
+    firmado_por,
   }) {
     this.id            = uuidv4()
-    this.personaId     = personaId
-    this.institucionId = institucionId
-    this.programaId    = programaId
-    this.tituloObtenido = tituloObtenido
-    this.fechaFin      = fechaFin
-    this.numeroCedula  = numeroCedula
-    this.tituloTesis   = tituloTesis
+    this.persona_id     = persona_id
+    this.institucion_id = institucion_id
+    this.programa_id    = programa_id
+    this.titulo_obtenido = titulo_obtenido
+    this.fecha_fin      = fecha_fin
+    this.numero_cedula  = numero_cedula
+    this.titulo_tesis   = titulo_tesis
     this.menciones     = menciones
-    this.firmadoPor    = firmadoPor
-    this.creadoEn      = new Date().toISOString()
+    this.firmado_por    = firmado_por
+    this.creado_en      = new Date().toISOString()
   }
 }
 

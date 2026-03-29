@@ -8,29 +8,29 @@ class Blockchain {
     this.chain = []
     this.transaccionesPendientes = []
     this.nodos = new Set()
-}
-
-formatearFecha(fecha) {
-  if (!fecha) return null
-
-  // Año solamente
-  if (/^\d{4}$/.test(fecha)) {
-    return `${fecha}-01-01`
   }
 
-  // Año-mes
-  if (/^\d{4}-\d{2}$/.test(fecha)) {
-    return `${fecha}-01`
+  formatearFecha(fecha) {
+    if (!fecha) return null
+
+    // Año solamente
+    if (/^\d{4}$/.test(fecha)) {
+      return `${fecha}-01-01`
+    }
+
+    // Año-mes
+    if (/^\d{4}-\d{2}$/.test(fecha)) {
+      return `${fecha}-01`
+    }
+
+    return fecha
   }
 
-  return fecha
-}
-
-/**
-   * Inicializa la cadena cargando desde Supabase.
-   * Si no hay bloques persistidos, crea el génesis.
-   * Se debe llamar con await antes de arrancar el servidor.
-   */
+  /**
+     * Inicializa la cadena cargando desde Supabase.
+     * Si no hay bloques persistidos, crea el génesis.
+     * Se debe llamar con await antes de arrancar el servidor.
+     */
   async inicializar() {
     const { cargarCadena, cargarPeers } = require('../db/grados')
 
@@ -61,7 +61,7 @@ formatearFecha(fecha) {
       0
     )
     this.chain.push(genesis)
-    console.log(`[Blockchain] Bloque creado: ${genesis.hashActual}`)
+    console.log(`[Blockchain] Bloque creado: ${genesis.hash_actual}`)
   }
 
 
@@ -73,63 +73,65 @@ formatearFecha(fecha) {
   proofOfWork(data) {
     const index = this.chain.length
     const timestamp = Date.now()
-    const hashAnterior = this.ultimoBloque.hashActual
+    const hash_anterior = this.ultimoBloque.hash_actual
     let nonce = 0
 
     console.log(`[PoW] Minando bloque #${index} con dificultad ${DIFFICULTY}...`)
 
-    let bloque = new Block(index, timestamp, data, hashAnterior, nonce)
+    let bloque = new Block(index, timestamp, data, hash_anterior, nonce)
     while (!bloque.cumpleDificultad(DIFFICULTY)) {
       nonce++
-      bloque = new Block(index, timestamp, data, hashAnterior, nonce)
+      bloque = new Block(index, timestamp, data, hash_anterior, nonce)
     }
 
-    console.log(`[PoW] Bloque #${index} minado! nonce=${nonce} hash=${bloque.hashActual}`)
+    console.log(`[PoW] Bloque #${index} minado! nonce=${nonce} hash=${bloque.hash_actual}`)
     return bloque
   }
 
-    
+
 
   async minar(nodeId) {
-  if (this.transaccionesPendientes.length === 0) {
-    throw new Error('No hay transacciones pendientes para minar')
+    if (this.transaccionesPendientes.length === 0) {
+      throw new Error('No hay transacciones pendientes para minar')
+    }
+
+    const data = {
+      transacciones: this.transaccionesPendientes.map(tx => ({
+        id: tx.id,
+        persona_id: tx.persona_id,
+        institucion_id: tx.institucion_id,
+        programa_id: tx.programa_id,
+        titulo_obtenido: tx.titulo_obtenido,
+        fecha_inicio: tx.fecha_inicio || null,
+        fecha_fin: this.formatearFecha(tx.fecha_fin),
+        numero_cedula: tx.numero_cedula || null,
+        titulo_tesis: tx.titulo_tesis || null,
+        menciones: tx.menciones || null,
+        firmado_por: tx.firmado_por || null,
+        creado_en: tx.creado_en || null,
+      })),
+      minado_por: nodeId,
+    }
+
+    const bloque = this.proofOfWork(data)
+
+    console.log("Tipo de bloque:", bloque.constructor.name)
+    console.log('[DEBUG BLOQUE]', JSON.stringify(bloque, null, 2))
+
+    this.chain.push(bloque)
+    this.transaccionesPendientes = []
+
+    const { persistirBloque } = require('../db/grados')
+
+    try {
+      await persistirBloque(bloque, nodeId)
+    } catch (err) {
+      console.error('[Blockchain] Error de persistencia:', err.message)
+    }
+
+
+    return bloque.toJSON()
   }
-
-  const data = {
-    transacciones: this.transaccionesPendientes.map(tx => ({
-      id: tx.id,
-      personaId: tx.personaId,
-      institucionId: tx.institucionId,
-      programaId: tx.programaId,
-      tituloObtenido: tx.tituloObtenido,
-      fechaFin: this.formatearFecha(tx.fechaFin),
-      numeroCedula: tx.numeroCedula || null,
-      tituloTesis: tx.tituloTesis || null,
-      menciones: tx.menciones || null,
-      firmadoPor: tx.firmadoPor,
-    })),
-    minadoPor: nodeId,
-  }
-
-  const bloque = this.proofOfWork(data)
-
-  console.log("Tipo de bloque:", bloque.constructor.name) // ✅ aquí sí existe
-  console.log('[DEBUG BLOQUE]', JSON.stringify(bloque, null, 2))
-
-  this.chain.push(bloque)
-  this.transaccionesPendientes = []
-
-  const { persistirBloque } = require('../db/grados')
-
-  try {
-    await persistirBloque(bloque, nodeId)
-  } catch (err) {
-    console.error('[Blockchain] Error de persistencia:', err.message)
-  }
-
-  
-  return bloque.toJSON()
-}
 
 
   agregarTransaccion(datosGrado) {
@@ -149,14 +151,14 @@ formatearFecha(fecha) {
         actual.index,
         actual.timestamp,
         actual.data,
-        actual.hashAnterior,
+        actual.hash_anterior,
         actual.nonce
       )
-      if (actual.hashActual !== bloqueRecalculado.hashActual) {
+      if (actual.hash_actual !== bloqueRecalculado.hash_actual) {
         console.warn(`[Validacion] Hash inválido en bloque #${i}`)
         return false
       }
-      if (actual.hashAnterior !== anterior.hashActual) {
+      if (actual.hash_anterior !== anterior.hash_actual) {
         console.warn(`[Validacion] Encadenamiento roto en bloque #${i}`)
         return false
       }

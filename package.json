@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "node1": "PORT=8001 NODE_ID=nodo-1 nodemon src/app.js",
-    "node2": "PORT=8002 NODE_ID=nodo-2 nodemon src/app.js"
+    "node1": "PORT=8002 NODE_ID=nodo-1 nodemon src/app.js"
   },
   "keywords": [],
   "author": "",

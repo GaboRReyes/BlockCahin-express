@@ -1,25 +1,26 @@
 require('dotenv').config()
 
 // Módulos principales
-const express    = require('express')
+const express = require('express')
 const Blockchain = require('./blockchain/Blockchain')
-const logger     = require('./middleware/logger')
+const logger = require('./middleware/logger')
 
 //Rutas
-const chainRoutes       = require('./routes/chain')
-const mineRoutes        = require('./routes/mine')
+const chainRoutes = require('./routes/chain')
+const mineRoutes = require('./routes/mine')
 const transactionRoutes = require('./routes/transactions')
-const nodeRoutes        = require('./routes/nodes')
+const nodeRoutes = require('./routes/nodes')
+const blockRoutes = require('./routes/blocks')
 
-const swaggerUi   = require('swagger-ui-express')
-const YAML        = require('yamljs')
-const swaggerDoc  = YAML.load('./swagger.yaml')
+const swaggerUi = require('swagger-ui-express')
+const YAML = require('yamljs')
+const swaggerDoc = YAML.load('./swagger.yaml')
 const cors = require('cors')
 
 //Inicialización del servidor
 async function startServer() {
-  const app  = express()
-  const PORT = process.env.PORT || 8001
+  const app = express()
+  const PORT = process.env.PORT || 8002
 
   // Inicializar la red
   const blockchain = new Blockchain()
@@ -30,21 +31,23 @@ async function startServer() {
   app.use(cors())
   app.use(logger)
 
-  app.use('/chain',        chainRoutes)
-  app.use('/mine',         mineRoutes)
+  // Rutas de la API
+  app.use('/chain', chainRoutes)
+  app.use('/mine', mineRoutes)
   app.use('/transactions', transactionRoutes)
-  app.use('/nodes',        nodeRoutes)
+  app.use('/nodes', nodeRoutes)
+  app.use('/blocks', blockRoutes)
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc))
-  
+
   // Ruta de salud para monitoreo
   app.get('/health', (req, res) => {
     res.json({
-      status:     'ok',
-      nodeId:     process.env.NODE_ID || 'nodo-1',
-      port:       PORT,
-      bloques:    blockchain.chain.length,
+      status: 'ok',
+      nodeId: process.env.NODE_ID || 'nodo-1',
+      port: PORT,
+      bloques: blockchain.chain.length,
       pendientes: blockchain.transaccionesPendientes.length,
-      peers:      blockchain.getNodos(),
+      peers: blockchain.getNodos(),
     })
   })
 

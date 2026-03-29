@@ -13,19 +13,19 @@ async function persistirBloque(bloque, nodeId) {
 
   const registros = transacciones.map((tx) => ({
     id: tx.id,
-    persona_id: tx.personaId,
-    institucion_id: tx.institucionId,
-    programa_id: tx.programaId,
-    titulo_obtenido: tx.tituloObtenido,
-    fecha_fin: tx.fechaFin,
-    numero_cedula: tx.numeroCedula || null,
-    titulo_tesis: tx.tituloTesis || null,
+    persona_id: tx.persona_id,
+    institucion_id: tx.institucion_id,
+    programa_id: tx.programa_id,
+    titulo_obtenido: tx.titulo_obtenido,
+    fecha_fin: tx.fecha_fin,
+    numero_cedula: tx.numero_cedula || null,
+    titulo_tesis: tx.titulo_tesis || null,
     menciones: tx.menciones || null,
-    firmado_por: tx.firmadoPor,
+    firmado_por: tx.firmado_por,
 
     //Blockchain
-    hash_actual: bloque.hashActual,
-    hash_anterior: bloque.hashAnterior,
+    hash_actual: bloque.hash_actual,
+    hash_anterior: bloque.hash_anterior,
     nonce: bloque.nonce,
   }))
 
@@ -62,8 +62,8 @@ async function cargarCadena() {
   for (const r of data) {
     if (!bloquesMap[r.hash_actual]) {
       bloquesMap[r.hash_actual] = {
-        hashActual: r.hash_actual,
-        hashAnterior: r.hash_anterior,
+        hash_actual: r.hash_actual,
+        hash_anterior: r.hash_anterior,
         nonce: r.nonce,
         timestamp: Date.now(),
         data: {
@@ -75,15 +75,15 @@ async function cargarCadena() {
 
     bloquesMap[r.hash_actual].data.transacciones.push({
       id: r.id,
-      personaId: r.persona_id,
-      institucionId: r.institucion_id,
-      programaId: r.programa_id,
-      tituloObtenido: r.titulo_obtenido,
-      fechaFin: r.fecha_fin,
-      numeroCedula: r.numero_cedula,
-      tituloTesis: r.titulo_tesis,
+      persona_id: r.persona_id,
+      institucion_id: r.institucion_id,
+      programa_id: r.programa_id,
+      titulo_obtenido: r.titulo_obtenido,
+      fecha_fin: r.fecha_fin,
+      numero_cedula: r.numero_cedula,
+      titulo_tesis: r.titulo_tesis,
       menciones: r.menciones,
-      firmadoPor: r.firmado_por,
+      firmado_por: r.firmado_por,
     })
   }
 
@@ -91,21 +91,21 @@ async function cargarCadena() {
 
   // Encontrar inicio
   let actual = bloques.find(b =>
-    !bloques.some(x => x.hashActual === b.hashAnterior)
+    !bloques.some(x => x.hash_actual === b.hash_anterior)
   )
 
   const cadena = []
 
   while (actual) {
     cadena.push(actual)
-    actual = bloques.find(b => b.hashAnterior === actual.hashActual)
+    actual = bloques.find(b => b.hash_anterior === actual.hash_actual)
   }
 
   // Génesis
   const genesis = {
     index: 0,
-    hashActual: cadena[0]?.hashAnterior || '0',
-    hashAnterior: '0',
+    hash_actual: cadena[0]?.hash_anterior || '0',
+    hash_anterior: '0',
     nonce: 0,
     timestamp: Date.now(),
     data: { mensaje: 'Bloque Génesis' },

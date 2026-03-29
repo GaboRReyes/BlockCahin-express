@@ -5,13 +5,10 @@ const router  = express.Router()
  * GET /chain
  * Retorna la cadena completa y su longitud
  */
+// GET /chain
 router.get('/', (req, res) => {
   const blockchain = req.app.get('blockchain')
-
-  res.json({
-    chain:  blockchain.chain,
-    length: blockchain.chain.length,
-  })
+  res.json({ longitud: blockchain.chain.length, cadena: blockchain.chain })
 })
 
 module.exports = router
