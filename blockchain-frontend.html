@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockchain — Grados Académicos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: #dddbd4;
+    --border2: #c8c5bc;
+    --accent: #2a2a2a;
+    --text: #1a1a1a;
+    --text-mid: #555;
+    --text-dim: #999;
+    --ok: #2d6a4f;
+    --ok-bg: #eaf4ef;
+    --err: #c0392b;
+    --err-bg: #fdf0ee;
+    --warn: #7a5c00;
+    --warn-bg: #fdf6e3;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --r: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .brand { font-weight: 600; font-size: 15px; white-space: nowrap; letter-spacing: -0.2px; }
+  .brand span { color: var(--text-mid); font-weight: 400; }
+
+  .node-bar {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border2);
+    border-radius: var(--r);
+    overflow: hidden;
+    flex: 1; max-width: 420px;
+  }
+  .node-bar label {
+    padding: 0 10px;
+    color: var(--text-dim);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    background: var(--surface2);
+    align-self: stretch;
+    display: flex; align-items: center;
+  }
+  .node-bar input {
+    border: none; outline: none;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    background: transparent;
+    flex: 1; min-width: 0;
+  }
+  .node-bar button {
+    padding: 8px 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .node-bar button:hover { opacity: 0.82; }
+
+  .status-pill { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+  .dot.online { background: var(--ok); }
+  .dot.error  { background: var(--err); }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .stat { padding: 14px 24px; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 4px; }
+  .stat-val { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    grid-template-rows: auto 1fr;
+    min-height: calc(100vh - 97px);
+  }
+
+  .panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel-head {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2);
+    flex-shrink: 0;
+  }
+  .panel-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-mid); }
+
+  .panel-body { padding: 18px 20px; flex: 1; overflow-y: auto; }
+
+  .right-col { grid-row: 1 / 3; border-right: none; flex-direction: column; }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 5px; font-weight: 500; }
+  .field label .req { color: var(--err); }
+  .field input {
+    width: 100%;
+    border: 1px solid var(--border2);
+    border-radius: var(--r);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .field input:focus { border-color: var(--accent); background: var(--surface); }
+  .field input::placeholder { color: var(--text-dim); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 18px;
+    border-radius: var(--r);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: #333; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--text-mid); border-color: var(--border2); }
+  .btn-ghost:hover { border-color: var(--accent2, #555); color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  .mine-zone {
+    text-align: center;
+    padding: 28px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .mine-count { font-family: var(--mono); font-size: 44px; font-weight: 500; line-height: 1; margin-bottom: 4px; }
+  .mine-label { color: var(--text-dim); font-size: 12px; margin-bottom: 20px; }
+  .progress { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; margin: 12px 0; display: none; }
+  .progress.active { display: block; }
+  .progress-fill { height: 100%; background: var(--accent); animation: prog 1.4s ease-in-out infinite; }
+  @keyframes prog { 0%{width:0%;margin-left:0%} 50%{width:50%;margin-left:25%} 100%{width:0%;margin-left:100%} }
+
+  .block-item { border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 8px; overflow: hidden; }
+  .block-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; cursor: pointer; transition: background 0.1s; }
+  .block-row:hover { background: var(--bg); }
+  .block-num { font-family: var(--mono); font-weight: 500; min-width: 36px; }
+  .block-hash { font-family: var(--mono); font-size: 11px; color: var(--text-dim); flex: 1; padding: 0 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .block-detail { display: none; padding: 12px 14px; border-top: 1px solid var(--border); background: var(--bg); font-size: 12px; }
+  .block-detail.open { display: block; }
+  .kv { display: flex; gap: 10px; margin-bottom: 5px; flex-wrap: wrap; }
+  .kv-k { color: var(--text-dim); min-width: 110px; font-size: 11px; font-family: var(--mono); flex-shrink: 0; }
+  .kv-v { font-family: var(--mono); font-size: 11px; color: var(--text); word-break: break-all; }
+  .tx-item { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; margin-top: 6px; }
+
+  .node-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 7px; background: var(--bg); }
+  .node-url { font-family: var(--mono); font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-weight: 500; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .mono-sm { font-family: var(--mono); font-size: 11px; color: var(--text-dim); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 500; letter-spacing: 0.3px; }
+  .tag-ok   { background: var(--ok-bg);   color: var(--ok); }
+  .tag-warn { background: var(--warn-bg); color: var(--warn); }
+  .tag-err  { background: var(--err-bg);  color: var(--err); }
+
+  .log { font-family: var(--mono); font-size: 11px; max-height: 150px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; }
+  .log-line { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--border); color: var(--text-mid); }
+  .log-line:last-child { border-bottom: none; }
+  .log-time { color: var(--text-dim); white-space: nowrap; }
+  .log-ok  { color: var(--ok); }
+  .log-err { color: var(--err); }
+  .log-inf { color: var(--warn); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+  .empty { padding: 28px; text-align: center; color: var(--text-dim); font-size: 12px; }
+
+  #toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 6px; z-index: 999; }
+  .toast { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 11px 16px; font-size: 12px; max-width: 300px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); animation: tin .18s ease; }
+  .toast.ok  { border-left: 3px solid var(--ok); }
+  .toast.err { border-left: 3px solid var(--err); }
+  .toast.inf { border-left: 3px solid var(--warn); }
+  @keyframes tin { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Blockchain <span>Grados Académicos</span></div>
+  <div class="node-bar">
+    <label>Nodo</label>
+    <input type="text" id="node-url" value="http://localhost:8002" placeholder="http://localhost:8002">
+    <button onclick="pingNode()">Conectar</button>
+  </div>
+  <div class="status-pill">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Sin conexión</span>
+  </div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-label">Bloques</div><div class="stat-val" id="s-bloques">—</div></div>
+  <div class="stat"><div class="stat-label">Pendientes</div><div class="stat-val" id="s-pend">—</div></div>
+  <div class="stat"><div class="stat-label">Peers</div><div class="stat-val" id="s-peers">—</div></div>
+  <div class="stat"><div class="stat-label">Node ID</div><div class="stat-val" id="s-id" style="font-size:14px;padding-top:3px;">—</div></div>
+</div>
+
+<div class="workspace">
+
+  <!-- COLUMNA IZQUIERDA ARRIBA: Formulario -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Nueva Transacción</span>
+      <button class="btn btn-ghost btn-sm" onclick="fillExample()">Ejemplo</button>
+    </div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Persona ID <span class="req">*</span></label>
+          <input type="text" id="tx-persona" placeholder="UUID">
+        </div>
+        <div class="field">
+          <label>Institución ID <span class="req">*</span></label>
+          <input type="text" id="tx-inst" placeholder="UUID">
+        </div>
+      </div>
+      <div class="field">
+        <label>Programa ID <span class="req">*</span></label>
+        <input type="text" id="tx-prog" placeholder="UUID">
+      </div>
+      <div class="field">
+        <label>Título Obtenido <span class="req">*</span></label>
+        <input type="text" id="tx-titulo" placeholder="Ej. Ingeniería en Sistemas">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Fecha Inicio <span class="req">*</span></label>
+          <input type="date" id="tx-inicio">
+        </div>
+        <div class="field">
+          <label>Fecha Fin <span class="req">*</span></label>
+          <input type="date" id="tx-fin">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Cédula</label>
+          <input type="text" id="tx-cedula" placeholder="CED-XXXXXXXX">
+        </div>
+        <div class="field">
+          <label>Firmado Por</label>
+          <input type="text" id="tx-firmado" placeholder="nodo-1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Título de Tesis</label>
+        <input type="text" id="tx-tesis" placeholder="Opcional">
+      </div>
+      <div class="field">
+        <label>Menciones</label>
+        <input type="text" id="tx-menciones" placeholder="Ej. Summa Cum Laude">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="createTransaction()">Registrar</button>
+        <button class="btn btn-ghost" onclick="clearTx()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUMNA IZQUIERDA ABAJO: Nodos + Log -->
+  <div class="panel" style="border-top:none;">
+    <div class="panel-head">
+      <span class="panel-title">Nodos</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadNodes()">Actualizar</button>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;">
+        <div class="field" style="margin:0;flex:1;">
+          <label>URL del peer</label>
+          <input type="text" id="peer-url" placeholder="https://nodo.ngrok-free.dev">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="registerNode()" style="height:35px;margin-bottom:1px;">Registrar</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="resolveChain()" style="width:100%;justify-content:center;margin-bottom:4px;">Resolver conflictos (cadena más larga)</button>
+
+      <hr>
+      <div id="nodes-list"><div class="empty" style="padding:12px 0;">Sin nodos registrados</div></div>
+
+      <hr>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);font-weight:600;">Actividad</span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('log').innerHTML=''">Limpiar</button>
+      </div>
+      <div class="log" id="log">
+        <div class="log-line"><span class="log-time">--:--:--</span><span class="log-inf">»</span><span>Conecta un nodo para comenzar.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUMNA DERECHA: Minar + Pendientes + Cadena -->
+  <div class="panel right-col">
+
+    <!-- MINE -->
+    <div class="mine-zone">
+      <div class="mine-count" id="m-count">—</div>
+      <div class="mine-label">transacciones pendientes</div>
+      <div class="progress" id="mine-prog"><div class="progress-fill"></div></div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="mine-btn" onclick="mineBlock()" disabled>Minar bloque</button>
+        <button class="btn btn-ghost" onclick="loadPending()">Actualizar</button>
+      </div>
+      <div id="mine-result" style="margin-top:14px;text-align:left;"></div>
+    </div>
+
+    <!-- PENDING -->
+    <div style="flex-shrink:0;">
+      <div class="panel-head" style="border-top:1px solid var(--border);">
+        <span class="panel-title">Transacciones Pendientes</span>
+      </div>
+      <div id="pending-wrap" style="overflow-x:auto;max-height:200px;overflow-y:auto;">
+        <div class="empty">Sin transacciones pendientes</div>
+      </div>
+    </div>
+
+    <!-- CHAIN -->
+    <div style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="panel-head">
+        <span class="panel-title">Cadena de Bloques</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadChain()">Actualizar</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 18px;" id="chain-list">
+        <div class="empty">Sin bloques cargados</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+  const url = () => document.getElementById('node-url').value.replace(/\/$/, '');
+
+  async function req(path, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(url() + path, opts);
+    const d = await r.json();
+    if (!r.ok) throw { status: r.status, data: d };
+    return d;
+  }
+
+  function addLog(type, msg) {
+    const el = document.getElementById('log');
+    const t = new Date().toLocaleTimeString('es', { hour12: false });
+    const icons = { ok: '✓', err: '✗', inf: '»' };
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    div.innerHTML = `<span class="log-time">${t}</span><span class="log-${type}">${icons[type]||'»'}</span><span>${msg}</span>`;
+    el.prepend(div);
+  }
+
+  function toast(msg, type = 'ok') {
+    const c = document.getElementById('toasts');
+    const d = document.createElement('div');
+    d.className = `toast ${type}`;
+    d.textContent = msg;
+    c.appendChild(d);
+    setTimeout(() => d.remove(), 3800);
+  }
+
+  async function pingNode() {
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    dot.className = 'dot'; txt.textContent = 'Conectando…';
+    try {
+      const d = await req('/health');
+      dot.className = 'dot online';
+      txt.textContent = d.nodeId || 'Conectado';
+      document.getElementById('s-bloques').textContent = d.bloques ?? '—';
+      document.getElementById('s-pend').textContent    = d.pendientes ?? '—';
+      document.getElementById('s-peers').textContent   = (d.peers || []).length;
+      document.getElementById('s-id').textContent      = d.nodeId || '—';
+      document.getElementById('m-count').textContent   = d.pendientes ?? 0;
+      document.getElementById('mine-btn').disabled     = !(d.pendientes > 0);
+      addLog('ok', `Nodo ${d.nodeId} — ${d.bloques} bloques, ${d.pendientes} pendientes`);
+      toast(`Conectado a ${d.nodeId}`, 'ok');
+      loadChain(); loadPending(); loadNodes();
+    } catch {
+      dot.className = 'dot error'; txt.textContent = 'Error';
+      addLog('err', `No se pudo conectar a ${url()}`);
+      toast('Error de conexión', 'err');
+    }
+  }
+
+  async function createTransaction() {
+    const body = {
+      persona_id:      document.getElementById('tx-persona').value.trim(),
+      institucion_id:  document.getElementById('tx-inst').value.trim(),
+      programa_id:     document.getElementById('tx-prog').value.trim(),
+      titulo_obtenido: document.getElementById('tx-titulo').value.trim(),
+      fecha_inicio:    document.getElementById('tx-inicio').value,
+      fecha_fin:       document.getElementById('tx-fin').value,
+      numero_cedula:   document.getElementById('tx-cedula').value.trim() || null,
+      titulo_tesis:    document.getElementById('tx-tesis').value.trim() || null,
+      menciones:       document.getElementById('tx-menciones').value.trim() || null,
+      firmado_por:     document.getElementById('tx-firmado').value.trim() || null,
+    };
+    for (const k of ['persona_id','institucion_id','programa_id','titulo_obtenido','fecha_inicio','fecha_fin']) {
+      if (!body[k]) { toast(`Campo requerido: ${k}`, 'err'); return; }
+    }
+    try {
+      await req('/transactions', 'POST', body);
+      addLog('ok', `Transacción: ${body.titulo_obtenido}`);
+      toast('Transacción registrada', 'ok');
+      clearTx(); loadPending();
+    } catch (e) {
+      const m = e.data?.error || 'Error al crear transacción';
+      addLog('err', m); toast(m, 'err');
+    }
+  }
+
+  function fillExample() {
+    document.getElementById('tx-persona').value   = '11111111-1111-1111-1111-111111111111';
+    document.getElementById('tx-inst').value      = '33333333-3333-3333-3333-333333333333';
+    document.getElementById('tx-prog').value      = '55555555-5555-5555-5555-555555555555';
+    document.getElementById('tx-titulo').value    = 'Ingeniería en Sistemas Computacionales';
+    document.getElementById('tx-inicio').value    = '2023-01-01';
+    document.getElementById('tx-fin').value       = '2025-06-01';
+    document.getElementById('tx-cedula').value    = 'CED-99998888';
+    document.getElementById('tx-firmado').value   = 'nodo-1';
+    document.getElementById('tx-tesis').value     = 'Consenso Distribuido en Angular';
+    document.getElementById('tx-menciones').value = 'Summa Cum Laude';
+  }
+
+  function clearTx() {
+    ['tx-persona','tx-inst','tx-prog','tx-titulo','tx-inicio','tx-fin',
+     'tx-cedula','tx-firmado','tx-tesis','tx-menciones'].forEach(id => document.getElementById(id).value = '');
+  }
+
+  async function loadPending() {
+    const wrap = document.getElementById('pending-wrap');
+    try {
+      const d = await req('/transactions/pending');
+      const txs = d.transacciones || [];
+      document.getElementById('m-count').textContent = txs.length;
+      document.getElementById('s-pend').textContent  = txs.length;
+      document.getElementById('mine-btn').disabled   = txs.length === 0;
+      if (!txs.length) {
+        wrap.innerHTML = '<div class="empty">Sin transacciones pendientes</div>';
+        return;
+      }
+      wrap.innerHTML = `<table>
+        <thead><tr><th>ID</th><th>Título</th><th>Persona</th><th>Fecha fin</th><th>Firmado</th></tr></thead>
+        <tbody>${txs.map(t => `<tr>
+          <td><span class="mono-sm">${t.id}</span></td>
+          <td>${t.titulo_obtenido}</td>
+          <td><span class="mono-sm">${t.persona_id}</span></td>
+          <td>${t.fecha_fin || '—'}</td>
+          <td>${t.firmado_por || '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+    } catch {
+      wrap.innerHTML = '<div class="empty">Error al cargar</div>';
+    }
+  }
+
+  async function mineBlock() {
+    const btn  = document.getElementById('mine-btn');
+    const prog = document.getElementById('mine-prog');
+    const res  = document.getElementById('mine-result');
+    btn.disabled = true; btn.textContent = 'Minando…';
+    prog.classList.add('active'); res.innerHTML = '';
+    addLog('inf', 'Iniciando minado…');
+    try {
+      const d = await req('/mine', 'POST');
+      prog.classList.remove('active');
+      btn.textContent = 'Minar bloque';
+      const b = d.bloque;
+      res.innerHTML = `<div style="background:var(--ok-bg);border:1px solid #a8d5be;border-radius:var(--r);padding:12px 14px;font-size:12px;">
+        <div style="font-weight:600;color:var(--ok);margin-bottom:8px;">Bloque #${b.index} minado correctamente</div>
+        <div class="kv"><span class="kv-k">Hash:</span><span class="kv-v">${b.hash_actual}</span></div>
+        <div class="kv"><span class="kv-k">Nonce:</span><span class="kv-v">${b.nonce.toLocaleString()}</span></div>
+        <div class="kv"><span class="kv-k">Transacciones:</span><span class="kv-v">${b.data?.transacciones?.length || 0}</span></div>
+      </div>`;
+      addLog('ok', `Bloque #${b.index} — nonce: ${b.nonce} — ${b.data?.transacciones?.length || 0} tx`);
+      toast(`Bloque #${b.index} minado`, 'ok');
+      loadPending(); loadChain();
+      const cur = parseInt(document.getElementById('s-bloques').textContent) || 0;
+      document.getElementById('s-bloques').textContent = cur + 1;
+    } catch (e) {
+      prog.classList.remove('active');
+      btn.disabled = false; btn.textContent = 'Minar bloque';
+      const m = e.data?.error || 'Error al minar';
+      addLog('err', m); toast(m, 'err');
+    }
+  }
+
+  async function resolveChain() {
+    addLog('inf', 'Ejecutando consenso…');
+    try {
+      const d = await req('/nodes/resolve');
+      const m = d.reemplazada
+        ? `Cadena reemplazada — ${d.longitud} bloques`
+        : `Cadena ya es la más larga (${d.longitud} bloques)`;
+      addLog('ok', m); toast(m, d.reemplazada ? 'inf' : 'ok');
+      if (d.reemplazada) loadChain();
+    } catch {
+      addLog('err', 'Error en consenso'); toast('Error en consenso', 'err');
+    }
+  }
+
+  async function loadChain() {
+    const el = document.getElementById('chain-list');
+    try {
+      const d = await req('/chain');
+      document.getElementById('s-bloques').textContent = d.length;
+      const blocks = [...(d.chain || [])].reverse();
+      if (!blocks.length) { el.innerHTML = '<div class="empty">Sin bloques</div>'; return; }
+      el.innerHTML = blocks.map(b => {
+        const txs = b.data?.transacciones || [];
+        const genesis = b.index === 0;
+        return `<div class="block-item">
+          <div class="block-row" onclick="this.nextElementSibling.classList.toggle('open')">
+            <span class="block-num">#${b.index}</span>
+            <span class="block-hash">${b.hash_actual}</span>
+            <span class="tag ${genesis ? 'tag-warn' : 'tag-ok'}">${genesis ? 'génesis' : txs.length + ' tx'}</span>
+          </div>
+          <div class="block-detail">
+            <div class="kv"><span class="kv-k">Timestamp:</span><span class="kv-v">${new Date(b.timestamp).toLocaleString('es-MX')}</span></div>
+            <div class="kv"><span class="kv-k">Hash actual:</span><span class="kv-v">${b.hash_actual}</span></div>
+            <div class="kv"><span class="kv-k">Hash anterior:</span><span class="kv-v">${b.hash_anterior}</span></div>
+            <div class="kv"><span class="kv-k">Nonce:</span><span class="kv-v">${b.nonce.toLocaleString()}</span></div>
+            ${txs.map(t => `<div class="tx-item">
+              <div class="kv"><span class="kv-k">Título:</span><span class="kv-v">${t.titulo_obtenido}</span></div>
+              <div class="kv"><span class="kv-k">Persona ID:</span><span class="kv-v">${t.persona_id}</span></div>
+              <div class="kv"><span class="kv-k">Fecha fin:</span><span class="kv-v">${t.fecha_fin || '—'}</span></div>
+              ${t.menciones ? `<div class="kv"><span class="kv-k">Menciones:</span><span class="kv-v">${t.menciones}</span></div>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+    } catch {
+      el.innerHTML = '<div class="empty">Error al cargar la cadena</div>';
+    }
+  }
+
+  async function loadNodes() {
+    const el = document.getElementById('nodes-list');
+    try {
+      const d = await req('/nodes');
+      const nodos = d.nodos || [];
+      if (!nodos.length) { el.innerHTML = '<div class="empty" style="padding:10px 0;">Sin nodos registrados</div>'; return; }
+      el.innerHTML = nodos.map(n => `<div class="node-item">
+        <span class="node-url">${n}</span>
+        <span class="tag tag-ok">activo</span>
+      </div>`).join('');
+    } catch {
+      el.innerHTML = '<div class="empty" style="padding:10px 0;">Error al cargar</div>';
+    }
+  }
+
+  async function registerNode() {
+    const u = document.getElementById('peer-url').value.trim();
+    if (!u) { toast('Ingresa la URL del nodo', 'err'); return; }
+    try {
+      await req('/nodes/register', 'POST', { nodos: [u] });
+      addLog('ok', `Nodo registrado: ${u}`);
+      toast('Nodo registrado', 'ok');
+      document.getElementById('peer-url').value = '';
+      loadNodes();
+    } catch (e) {
+      const m = e.data?.error || 'Error al registrar';
+      addLog('err', m); toast(m, 'err');
+    }
+  }
+
+  document.getElementById('node-url').addEventListener('keydown', e => { if (e.key === 'Enter') pingNode(); });
+</script>
+</body>
+</html>
