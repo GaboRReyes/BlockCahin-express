@@ -53,15 +53,24 @@ class Blockchain {
   }
 
   _crearBloqueGenesis() {
-    const genesis = new Block(
-      0,
-      Date.now(),
-      { mensaje: 'Bloque Génesis - Red Blockchain Grados de Académicos' },
-      '0',
-      0
-    )
+    const index = 0
+    const timestamp = Date.now()
+    const data = { mensaje: 'Bloque Génesis - Red Blockchain Grados de Académicos' }
+    const hash_anterior = '0'
+    let nonce = 0
+
+    console.log(`[Genesis] Minando bloque génesis con dificultad ${DIFFICULTY}...`)
+
+    let genesis = new Block(index, timestamp, data, hash_anterior, nonce)
+
+    while (!genesis.cumpleDificultad(DIFFICULTY)) {
+      nonce++
+      genesis = new Block(index, timestamp, data, hash_anterior, nonce)
+    }
+
     this.chain.push(genesis)
-    console.log(`[Blockchain] Bloque creado: ${genesis.hash_actual}`)
+
+    console.log(`[Genesis] Bloque génesis minado! nonce=${nonce} hash=${genesis.hash_actual}`)
   }
 
 
@@ -178,6 +187,16 @@ class Blockchain {
       return true
     }
     return false
+  }
+
+  resetearCadena() {
+    this.chain = []
+    this.transaccionesPendientes = []
+    this.transaccionesVistas = new Set()
+
+    this._crearBloqueGenesis()
+
+    console.log('[Blockchain] Cadena reiniciada')
   }
 
 
