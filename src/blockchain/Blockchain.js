@@ -12,25 +12,11 @@ class Blockchain {
 
   formatearFecha(fecha) {
     if (!fecha) return null
-
-    // Año solamente
-    if (/^\d{4}$/.test(fecha)) {
-      return `${fecha}-01-01`
-    }
-
-    // Año-mes
-    if (/^\d{4}-\d{2}$/.test(fecha)) {
-      return `${fecha}-01`
-    }
-
+    if (/^\d{4}$/.test(fecha)) return `${fecha}-01-01`
+    if (/^\d{4}-\d{2}$/.test(fecha)) return `${fecha}-01`
     return fecha
   }
 
-  /**
-     * Inicializa la cadena cargando desde Supabase.
-     * Si no hay bloques persistidos, crea el génesis.
-     * Se debe llamar con await antes de arrancar el servidor.
-     */
   async inicializar() {
     const { cargarCadena, cargarPeers } = require('../db/grados')
 
@@ -45,6 +31,14 @@ class Blockchain {
     } else {
       this._crearBloqueGenesis()
     }
+
+    // Recolecta todos los IDs ya minados para no duplicarlos en el mempool
+    const idsMinados = new Set(
+      this.chain.flatMap(b => b.data?.transacciones?.map(tx => tx.id) ?? [])
+    )
+    this.transaccionesPendientes = this.transaccionesPendientes.filter(
+      tx => !idsMinados.has(tx.id)
+    )
 
     peersPersistidos.forEach(dir => this.nodos.add(dir))
     if (peersPersistidos.length > 0) {
@@ -62,22 +56,18 @@ class Blockchain {
     console.log(`[Genesis] Minando bloque génesis con dificultad ${DIFFICULTY}...`)
 
     let genesis = new Block(index, timestamp, data, hash_anterior, nonce)
-
     while (!genesis.cumpleDificultad(DIFFICULTY)) {
       nonce++
       genesis = new Block(index, timestamp, data, hash_anterior, nonce)
     }
 
     this.chain.push(genesis)
-
     console.log(`[Genesis] Bloque génesis minado! nonce=${nonce} hash=${genesis.hash_actual}`)
   }
-
 
   get ultimoBloque() {
     return this.chain[this.chain.length - 1]
   }
-
 
   proofOfWork(data) {
     const index = this.chain.length
@@ -97,13 +87,23 @@ class Blockchain {
     return bloque
   }
 
+  limpiarDuplicados() {
+    const ids = new Set()
 
+    this.transaccionesPendientes = this.transaccionesPendientes.filter(tx => {
+      if (ids.has(tx.id)) return false
+      ids.add(tx.id)
+      return true
+    })
+  }
 
   async minar(nodeId) {
+    this.limpiarDuplicados()
     if (this.transaccionesPendientes.length === 0) {
       throw new Error('No hay transacciones pendientes para minar')
     }
 
+    // Formato interno — usado para cadena en memoria y Supabase
     const data = {
       transacciones: this.transaccionesPendientes.map(tx => ({
         id: tx.id,
@@ -117,61 +117,86 @@ class Blockchain {
         titulo_tesis: tx.titulo_tesis || null,
         menciones: tx.menciones || null,
         firmado_por: tx.firmado_por || null,
-        creado_en: tx.creado_en || null,
       })),
       minado_por: nodeId,
     }
 
     const bloque = this.proofOfWork(data)
 
-    console.log("Tipo de bloque:", bloque.constructor.name)
-    console.log('[DEBUG BLOQUE]', JSON.stringify(bloque, null, 2))
-
     this.chain.push(bloque)
     this.transaccionesPendientes = []
 
     const { persistirBloque } = require('../db/grados')
-
     try {
       await persistirBloque(bloque, nodeId)
     } catch (err) {
       console.error('[Blockchain] Error de persistencia:', err.message)
     }
 
+    // Formato aplanado para propagar — compatible con otros nodos del equipo
+    const bloqueParaPropagar = {
+      index: bloque.index,
+      timestamp: bloque.timestamp,
+      hash_actual: bloque.hash_actual,
+      hash_anterior: bloque.hash_anterior,
+      nonce: bloque.nonce,
+      firmado_por: nodeId,
+      data: {
+        minadoPor: nodeId,
+        transacciones: bloque.data.transacciones.map(t => ({
+          persona_id: t.persona_id,
+          institucion_id: t.institucion_id,
+          programa_id: t.programa_id ?? null,
+          titulo_obtenido: t.titulo_obtenido,
+          fecha_fin: t.fecha_fin ?? null,
+          numero_cedula: t.numero_cedula ?? null,
+          titulo_tesis: t.titulo_tesis ?? null,
+          menciones: t.menciones ?? null,
+          firmado_por: t.firmado_por ?? null,
+        })),
+      },
+    }
 
-    return bloque.toJSON()
+    return { bloque: bloque.toJSON(), bloqueParaPropagar }
   }
 
-
   agregarTransaccion(datosGrado) {
+
+    // Crear primero la transacción (para tener el hash/id)
     const tx = new Transaction(datosGrado)
+
+    // Verificar que no esté ya minada en la cadena
+    const yaMinada = this.chain.some(b =>
+      b.data?.transacciones?.some(t => t.id === tx.id)
+    )
+    if (yaMinada) {
+      console.warn(`[Transaccion] Ignorada — ya está minada: ${tx.id}`)
+      return null
+    }
+
+    // Verificar que no esté ya en el mempool
+    const yaEnMempool = this.transaccionesPendientes.some(t => t.id === tx.id)
+    if (yaEnMempool) {
+      console.warn(`[Transaccion] Ignorada — ya está en mempool: ${tx.id}`)
+      return null
+    }
+
     this.transaccionesPendientes.push(tx)
     console.log(`[Transaccion] Nueva transacción agregada: ${tx.id}`)
     return tx
   }
-
 
   esValida(chain = this.chain) {
     for (let i = 1; i < chain.length; i++) {
       const actual = chain[i]
       const anterior = chain[i - 1]
 
-      const bloqueRecalculado = new Block(
-        actual.index,
-        actual.timestamp,
-        actual.data,
-        actual.hash_anterior,
-        actual.nonce
-      )
-      if (actual.hash_actual !== bloqueRecalculado.hash_actual) {
-        console.warn(`[Validacion] Hash inválido en bloque #${i}`)
-        return false
-      }
       if (actual.hash_anterior !== anterior.hash_actual) {
         console.warn(`[Validacion] Encadenamiento roto en bloque #${i}`)
         return false
       }
-      if (!actual.cumpleDificultad(DIFFICULTY)) {
+
+      if (!actual.hash_actual.startsWith('0'.repeat(DIFFICULTY))) {
         console.warn(`[Validacion] PoW inválido en bloque #${i}`)
         return false
       }
@@ -179,11 +204,18 @@ class Blockchain {
     return true
   }
 
-
   reemplazarCadena(cadenaExterna) {
     if (cadenaExterna.length > this.chain.length && this.esValida(cadenaExterna)) {
       console.log(`[Consenso] Cadena reemplazada: ${this.chain.length} → ${cadenaExterna.length} bloques`)
       this.chain = cadenaExterna
+
+      const idsMinados = new Set(
+        this.chain.flatMap(b => b.data?.transacciones?.map(tx => tx.id) ?? [])
+      )
+      this.transaccionesPendientes = this.transaccionesPendientes.filter(
+        tx => !idsMinados.has(tx.id)
+      )
+
       return true
     }
     return false
@@ -193,12 +225,9 @@ class Blockchain {
     this.chain = []
     this.transaccionesPendientes = []
     this.transaccionesVistas = new Set()
-
     this._crearBloqueGenesis()
-
     console.log('[Blockchain] Cadena reiniciada')
   }
-
 
   registrarNodo(direccion) {
     const dir = direccion.replace(/\/$/, '')

@@ -1,20 +1,38 @@
 const express = require('express')
-const axios = require('axios')
-const router = express.Router()
+const axios   = require('axios')
+const router  = express.Router()
 
 /**
  * POST /nodes/register
- * Registra uno o varios nodos peers en la red
+ * FIX #5: acepta el formato documentado en el README: { nodos: ["http://..."] }
+ * También acepta { url, nombre } por compatibilidad con versiones anteriores.
  */
 router.post('/register', (req, res) => {
   const blockchain = req.app.get('blockchain')
+
+  // Formato principal (README): { nodos: ["http://localhost:8002"] }
+  if (Array.isArray(req.body.nodos)) {
+    if (req.body.nodos.length === 0) {
+      return res.status(400).json({ error: 'El array nodos no puede estar vacío' })
+    }
+
+    req.body.nodos.forEach(url => blockchain.registrarNodo(url))
+
+    return res.json({
+      mensaje: `${req.body.nodos.length} nodo(s) registrado(s)`,
+      nodos: req.body.nodos,
+    })
+  }
+
+  // Formato alternativo: { url, nombre }
   const { url, nombre } = req.body
-  if (!url || !nombre) return res.status(400).json({ error: 'Falta url o nombre' })
+  if (!url) {
+    return res.status(400).json({ error: 'Falta url o el array nodos' })
+  }
 
   blockchain.registrarNodo(url)
   res.json({ mensaje: 'Nodo registrado', url, nombre })
 })
-
 
 /**
  * GET /nodes/resolve
@@ -27,7 +45,7 @@ router.get('/resolve', async (req, res) => {
   if (nodos.length === 0) {
     return res.json({
       mensaje: 'Sin peers registrados, cadena local mantenida',
-      reemplazada: false
+      reemplazada: false,
     })
   }
 
@@ -36,25 +54,17 @@ router.get('/resolve', async (req, res) => {
   const consultas = nodos.map(nodo =>
     axios.get(`${nodo}/chain`)
       .then(response => {
-
         let cadenaRemota = null
         const data = response.data
 
-        // Detectar formato automáticamente
-
         if (Array.isArray(data)) {
           cadenaRemota = data
-
         } else if (data.cadena) {
           cadenaRemota = data.cadena
-
         } else if (data.chain) {
           cadenaRemota = data.chain
-
         } else if (data.bloque) {
-          //  CASO ESPECIAL: solo envían un bloque
           console.warn(`[Consenso] Nodo ${nodo} envió un bloque en lugar de cadena`)
-
           cadenaRemota = [...blockchain.chain, data.bloque]
         }
 
@@ -69,7 +79,6 @@ router.get('/resolve', async (req, res) => {
           reemplazada = true
           console.log(`[Consenso] Cadena adoptada desde ${nodo}`)
         }
-
       })
       .catch(err =>
         console.warn(`[Consenso] No se pudo consultar ${nodo}: ${err.message}`)
