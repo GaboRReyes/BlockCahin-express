@@ -1,13 +1,6 @@
 const { sha256 } = require('../utils/hash')
 
 class Block {
-  /**
-   * @param {number} index - Posición del bloque en la cadena
-   * @param {number} timestamp - Unix timestamp de creación
-   * @param {Object} data - Datos académicos (grado)
-   * @param {string} hash_anterior - Hash del bloque previo
-   * @param {number} nonce - Número encontrado por Proof of Work
-   */
   constructor(index, timestamp, data, hash_anterior = '', nonce = 0) {
     this.index = index
     this.timestamp = timestamp
@@ -17,40 +10,35 @@ class Block {
     this.hash_actual = this.calcularHash()
   }
 
-  /**
-   * Calcula el SHA256 del bloque completo
-   * Incluye todos los campos relevantes para que cualquier alteración cambie completamente el hash
-   */
   calcularHash() {
-    return sha256({
-      index: this.index,
-      timestamp: this.timestamp,
-      data: this.data,
-      hash_anterior: this.hash_anterior,
-      nonce: this.nonce,
-    })
+    // Toma la primera transacción del bloque para extraer los campos a hashear
+    // (compatible con el formato de concatenación plana de los otros nodos)
+    const tx = this.data?.transacciones?.[0] ?? this.data ?? {}
+
+    const fechaCorta = tx.fecha_fin
+      ? tx.fecha_fin.toString().substring(0, 10)
+      : ''
+
+    const cadena = `${tx.persona_id ?? ''}${tx.institucion_id ?? ''}${tx.titulo_obtenido ?? ''}${fechaCorta}${this.hash_anterior ?? ''}${this.nonce}`
+
+
+    return sha256(cadena)
   }
 
-  /**
-   * Verificar dificultad deñ¿l hash
-   * @param {number} difficulty - Cantidad de ceros iniciales requeridos
-   * @returns {boolean}
-   */
   cumpleDificultad(difficulty) {
     return this.hash_actual.startsWith('0'.repeat(difficulty))
   }
 
   toJSON() {
     return {
-      index: this.index,
-      timestamp: this.timestamp,
-      data: this.data,
+      index:         this.index,
+      timestamp:     this.timestamp,
+      data:          this.data,
       hash_anterior: this.hash_anterior,
-      nonce: this.nonce,
-      hash_actual: this.hash_actual
+      nonce:         this.nonce,
+      hash_actual:   this.hash_actual,
     }
-  } 
-
+  }
 }
-module.exports = Block
 
+module.exports = Block
