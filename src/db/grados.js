@@ -1,7 +1,7 @@
 const supabase = require('./supabase')
 
 /**
- * Persistir bloque SIN campos extra
+ * Persistir bloque con timestamp incluido
  */
 async function persistirBloque(bloque, nodeId) {
   const transacciones = bloque.data?.transacciones || []
@@ -12,24 +12,26 @@ async function persistirBloque(bloque, nodeId) {
   }
 
   const registros = transacciones.map((tx) => ({
-    id: tx.id,
-    persona_id: tx.persona_id,
+    // id lo genera Postgres automáticamente (gen_random_uuid())
+    persona_id:     tx.persona_id,
     institucion_id: tx.institucion_id,
-    programa_id: tx.programa_id,
-    titulo_obtenido: tx.titulo_obtenido,
-    fecha_fin: tx.fecha_fin,
-    numero_cedula: tx.numero_cedula || null,
-    titulo_tesis: tx.titulo_tesis || null,
-    menciones: tx.menciones || null,
-    firmado_por: tx.firmado_por,
+    programa_id:    tx.programa_id    ?? null,
+    titulo_obtenido:tx.titulo_obtenido,
+    fecha_fin:      tx.fecha_fin      ?? null,
+    numero_cedula:  tx.numero_cedula  ?? null,
+    titulo_tesis:   tx.titulo_tesis   ?? null,
+    menciones:      tx.menciones      ?? null,
+    firmado_por:    tx.firmado_por    ?? null,
 
-    //Blockchain
-    hash_actual: bloque.hash_actual,
-    hash_anterior: bloque.hash_anterior,
-    nonce: bloque.nonce,
+    // Blockchain
+    hash_actual:    bloque.hash_actual,
+    hash_anterior:  bloque.hash_anterior,
+    nonce:          bloque.nonce,
   }))
 
-  const { error } = await supabase.from('grados').insert(registros)
+  const { error } = await supabase
+    .from('grados')
+    .upsert(registros, { onConflict: 'id', ignoreDuplicates: true }) // ← evita duplicados si el bloque llega dos veces
 
   if (error) {
     console.error('[DB] Error al persistir bloque:', error.message)
@@ -40,9 +42,8 @@ async function persistirBloque(bloque, nodeId) {
 }
 
 
-
 /**
- * Reconstrucción de bloque
+ * Reconstrucción de bloque desde Supabase
  */
 async function cargarCadena() {
   const { data, error } = await supabase
@@ -62,34 +63,34 @@ async function cargarCadena() {
   for (const r of data) {
     if (!bloquesMap[r.hash_actual]) {
       bloquesMap[r.hash_actual] = {
-        hash_actual: r.hash_actual,
+        hash_actual:   r.hash_actual,
         hash_anterior: r.hash_anterior,
-        nonce: r.nonce,
-        timestamp: Date.now(),
+        nonce:         r.nonce,
+        timestamp:     0,
         data: {
-          minadoPor: 'desconocido',
+          minado_por:    r.firmado_por ?? 'desconocido',
           transacciones: [],
         },
       }
     }
 
     bloquesMap[r.hash_actual].data.transacciones.push({
-      id: r.id,
-      persona_id: r.persona_id,
+      id:             r.id,
+      persona_id:     r.persona_id,
       institucion_id: r.institucion_id,
-      programa_id: r.programa_id,
-      titulo_obtenido: r.titulo_obtenido,
-      fecha_fin: r.fecha_fin,
-      numero_cedula: r.numero_cedula,
-      titulo_tesis: r.titulo_tesis,
-      menciones: r.menciones,
-      firmado_por: r.firmado_por,
+      programa_id:    r.programa_id,
+      titulo_obtenido:r.titulo_obtenido,
+      fecha_fin:      r.fecha_fin,
+      numero_cedula:  r.numero_cedula,
+      titulo_tesis:   r.titulo_tesis,
+      menciones:      r.menciones,
+      firmado_por:    r.firmado_por,
     })
   }
 
   const bloques = Object.values(bloquesMap)
 
-  // Encontrar inicio
+  // Encontrar el bloque raíz (el que ningún otro apunta como siguiente)
   let actual = bloques.find(b =>
     !bloques.some(x => x.hash_actual === b.hash_anterior)
   )
@@ -101,21 +102,21 @@ async function cargarCadena() {
     actual = bloques.find(b => b.hash_anterior === actual.hash_actual)
   }
 
-  // Génesis
+  // Génesis sintético reconstruido a partir del primer bloque real
   const genesis = {
-    index: 0,
-    hash_actual: cadena[0]?.hash_anterior || '0',
+    index:         0,
+    hash_actual:   cadena[0]?.hash_anterior || '0',
     hash_anterior: '0',
-    nonce: 0,
-    timestamp: Date.now(),
-    data: { mensaje: 'Bloque Génesis' },
+    nonce:         0,
+    timestamp:     0,
+    data:          { mensaje: 'Bloque Génesis' },
   }
 
   return [genesis, ...cadena.map((b, i) => ({ ...b, index: i + 1 }))]
 }
 
 /**
- * Guardar peer (tabla nodos ya existente)
+ * Guardar peer en tabla nodos
  */
 async function guardarPeer(nodeId, direccion) {
   const { error } = await supabase
@@ -129,7 +130,7 @@ async function guardarPeer(nodeId, direccion) {
 }
 
 /**
- * Cargar peers
+ * Cargar peers activos del nodo
  */
 async function cargarPeers(nodeId) {
   const { data, error } = await supabase

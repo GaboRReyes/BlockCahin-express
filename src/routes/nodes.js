@@ -4,13 +4,11 @@ const router  = express.Router()
 
 /**
  * POST /nodes/register
- * FIX #5: acepta el formato documentado en el README: { nodos: ["http://..."] }
  * También acepta { url, nombre } por compatibilidad con versiones anteriores.
  */
 router.post('/register', (req, res) => {
   const blockchain = req.app.get('blockchain')
 
-  // Formato principal (README): { nodos: ["http://localhost:8002"] }
   if (Array.isArray(req.body.nodos)) {
     if (req.body.nodos.length === 0) {
       return res.status(400).json({ error: 'El array nodos no puede estar vacío' })
