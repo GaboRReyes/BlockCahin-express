@@ -11,4 +11,11 @@ router.get('/', (req, res) => {
   res.json({ longitud: blockchain.chain.length, cadena: blockchain.chain })
 })
 
+// GET /chain/reset
+router.post('/reset', (req, res) => {
+  const blockchain = req.app.get('blockchain')
+  blockchain.resetearCadena()
+
+  res.json({ mensaje: 'Blockchain reiniciada' })
+})
 module.exports = router 
