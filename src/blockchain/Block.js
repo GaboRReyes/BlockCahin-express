@@ -11,8 +11,6 @@ class Block {
   }
 
   calcularHash() {
-    // Toma la primera transacción del bloque para extraer los campos a hashear
-    // (compatible con el formato de concatenación plana de los otros nodos)
     const tx = this.data?.transacciones?.[0] ?? this.data ?? {}
 
     const fechaCorta = tx.fecha_fin
